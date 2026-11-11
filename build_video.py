@@ -64,7 +64,37 @@ def parse_markup(text):
     return words
 
 
-def build_timeline(scenes, sil, total):
+def norm(w): return re.sub(r"[^a-z0-9]", "", w.lower())
+
+
+def align_words(timed_scene_words, whisper_words, lo, hi):
+    """Selaraskan perkataan skrip dengan perkataan Whisper (fuzzy), isi lompang dengan interpolasi."""
+    import difflib
+    ws = [(norm(x["w"]), x["start"]) for x in whisper_words if lo - 0.3 <= x["start"] <= hi + 0.3]
+    res, j = [], 0
+    for w, term, t in timed_scene_words:
+        found = None
+        for k in range(j, min(j + 5, len(ws))):
+            if difflib.SequenceMatcher(None, norm(w), ws[k][0]).ratio() >= 0.6:
+                found = k; break
+        if found is not None:
+            res.append(ws[found][1]); j = found + 1
+        else:
+            res.append(None)
+    # interpolasi untuk None
+    for i, v in enumerate(res):
+        if v is None:
+            a = next((k for k in range(i - 1, -1, -1) if res[k] is not None), None)
+            b = next((k for k in range(i + 1, len(res)) if res[k] is not None), None)
+            ta = res[a] if a is not None else lo
+            tb = res[b] if b is not None else hi
+            ia = a if a is not None else -1
+            ib = b if b is not None else len(res)
+            res[i] = ta + (tb - ta) * (i - ia) / (ib - ia)
+    return [(w, term, r) for (w, term, _), r in zip(timed_scene_words, res)]
+
+
+def build_timeline(scenes, sil, total, whisper_words=None):
     s0, s1 = speech_bounds(sil, total)
     inner = [x for x in sil if x[0] > s0 + 0.3 and x[1] < s1 - 0.3]
     n = len(scenes)
@@ -91,6 +121,8 @@ def build_timeline(scenes, sil, total):
         for (w, term), l in zip(words, wt):
             timed.append((w, term, ws + (we - ws) * acc / tot))
             acc += l
+        if whisper_words:
+            timed = align_words(timed, whisper_words, ws, we)
         out.append({"start": bounds[i], "speech": (ws, we), "words": timed, "color": sc.get("color", "green")})
     return out, s0, s1, picks
 
@@ -169,11 +201,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--audio", required=True); ap.add_argument("--script", required=True)
     ap.add_argument("--out", default="video.mp4"); ap.add_argument("--duration", type=float, default=0)
+    ap.add_argument("--words", help="JSON daripada transcribe.py, atau 'auto' untuk jalankan transcribe.py")
     a = ap.parse_args()
     cfg = json.load(open(a.script))
     atotal = probe_duration(a.audio)
     sil, _ = detect_silences(a.audio)
-    scenes, s0, s1, picks = build_timeline(cfg["scenes"], sil, atotal)
+    ww = None
+    if a.words:
+        if a.words == "auto":
+            a.words = a.out + ".words.json"
+            subprocess.check_call([sys.executable, "-I", "transcribe.py", a.audio, "--json", a.words])
+        ww = [w for seg in json.load(open(a.words)) for w in seg["words"]]
+    scenes, s0, s1, picks = build_timeline(cfg["scenes"], sil, atotal, ww)
     dur = a.duration or (s1 + 2.5)
     if s1 > dur - 1.2:
         print(f"AMARAN: audio bercakap sampai {s1:.1f}s, video {dur:.1f}s - outro terlalu pendek", file=sys.stderr)
