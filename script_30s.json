@@ -1,0 +1,12 @@
+{
+  "header": "Panitia Pendidikan Islam",
+  "subheader": "SK Taman Selasih",
+  "credit": "Pesanan daripada Panitia Pendidikan Islam",
+  "scenes": [
+    {"color": "green", "text": "Anak-anak ibarat [[kain putih]], [[ibu bapa]]lah yang mencorakkan perjalanan hidup mereka."},
+    {"color": "blue",  "text": "Kejayaan anak bukan sekadar kecerdikan dan usaha, tetapi juga [[doa]], [[kasih sayang]] dan [[sokongan]] ibu bapa."},
+    {"color": "green", "text": "Luangkan masa untuk [[mendengar]], [[membimbing]] dan memberi [[dorongan]]."},
+    {"color": "blue",  "text": "Anak-anak tidak memerlukan ibu bapa yang [[sempurna]], tetapi yang sentiasa [[hadir]]."},
+    {"color": "green", "text": "Kerana di sebalik kejayaan seorang anak, ada [[doa]] dan [[pengorbanan]] ibu bapa yang tidak ternilai."}
+  ]
+}
